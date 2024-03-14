@@ -1,4 +1,6 @@
-﻿using System.ComponentModel;
+﻿using Microsoft.Win32;
+using System.ComponentModel;
+using System.Drawing;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Windows;
@@ -10,13 +12,11 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using Color = System.Windows.Media.Color;
 
 namespace ColorChange
 {
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
-    public partial class MainWindow : Window, INotifyPropertyChanged
+    public partial class MainWindow : Window
     {
         private Color _girilenRenk;
         public Color GirilenRenk
@@ -44,7 +44,7 @@ namespace ColorChange
         {
             InitializeComponent();
             DataContext = this;
-            GirilenRenk = Colors.White; 
+            GirilenRenk = Colors.White;
         }
 
         private void CalculateButton_Click(object sender, RoutedEventArgs e)
@@ -55,7 +55,7 @@ namespace ColorChange
                 byte g = Convert.ToByte(txtGreen.Text);
                 byte b = Convert.ToByte(txtBlue.Text);
 
-                GirilenRenk = Color.FromRgb(r, g, b); 
+                GirilenRenk = Color.FromRgb(r, g, b);
 
                 double hue = GetHueFromRGB(r, g, b);
                 CikanRenk = ColorFromHSL(hue, 0, 0);
@@ -130,5 +130,7 @@ namespace ColorChange
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
+
+
     }
 }
