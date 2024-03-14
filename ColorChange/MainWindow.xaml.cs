@@ -1,134 +1,160 @@
-﻿using Microsoft.Win32;
-using System.ComponentModel;
+﻿using System;
 using System.Drawing;
-using System.Runtime.CompilerServices;
-using System.Text;
+using System.IO;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
+using System.Windows.Forms;
 using System.Windows.Input;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
-using Color = System.Windows.Media.Color;
+using Color = System.Drawing.Color;
 
 namespace ColorChange
 {
     public partial class MainWindow : Window
     {
-        private Color _girilenRenk;
-        public Color GirilenRenk
-        {
-            get { return _girilenRenk; }
-            set
-            {
-                _girilenRenk = value;
-                OnPropertyChanged();
-            }
-        }
-
-        private Color _cikanRenk;
-        public Color CikanRenk
-        {
-            get { return _cikanRenk; }
-            set
-            {
-                _cikanRenk = value;
-                OnPropertyChanged();
-            }
-        }
+        private BitmapImage selectedImage;
+        private Bitmap selectedBitmap;
 
         public MainWindow()
         {
             InitializeComponent();
-            DataContext = this;
-            GirilenRenk = Colors.White;
         }
 
-        private void CalculateButton_Click(object sender, RoutedEventArgs e)
+        private void SelectImage_Click(object sender, RoutedEventArgs e)
         {
-            try
+            Microsoft.Win32.OpenFileDialog openFileDialog = new Microsoft.Win32.OpenFileDialog();
+            openFileDialog.Filter = "Image Files|*.jpg;*.jpeg;*.png;*.gif;*.bmp";
+
+            if (openFileDialog.ShowDialog() == true)
             {
-                byte r = Convert.ToByte(txtRed.Text);
-                byte g = Convert.ToByte(txtGreen.Text);
-                byte b = Convert.ToByte(txtBlue.Text);
-
-                GirilenRenk = Color.FromRgb(r, g, b);
-
-                double hue = GetHueFromRGB(r, g, b);
-                CikanRenk = ColorFromHSL(hue, 0, 0);
-                txtHSLResult.Text = "Hue (Ton): " + hue.ToString("0.##");
-
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("RGB değerlerini doğru bir şekilde giriniz.");
+                string selectedFile = openFileDialog.FileName;
+                selectedImage = new BitmapImage(new Uri(selectedFile));
+                imgSelectedImage.Source = selectedImage;
+                selectedBitmap = new Bitmap(selectedFile);
             }
         }
 
-        static double GetHueFromRGB(byte r, byte g, byte b)
+        private System.Windows.Point clickedPoint;
+
+        private void imgSelectedImage_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            double R = (double)r / 255;
-            double G = (double)g / 255;
-            double B = (double)b / 255;
-
-            double max = Math.Max(R, Math.Max(G, B));
-            double min = Math.Min(R, Math.Min(G, B));
-
-            double hue = 0;
-
-            if (max == R)
-                hue = (60 * ((G - B) / (max - min)) + 360) % 360;
-            else if (max == G)
-                hue = (60 * ((B - R) / (max - min)) + 120);
-            else if (max == B)
-                hue = (60 * ((R - G) / (max - min)) + 240);
-
-            return hue;
+            clickedPoint = e.GetPosition(imgSelectedImage);
         }
 
-        static Color ColorFromHSL(double hue, double saturation, double lightness)
+        private void ApplyFilter_Click(object sender, RoutedEventArgs e)
         {
-            if (saturation == 0)
-                return Color.FromRgb(Convert.ToByte(lightness * 255), Convert.ToByte(lightness * 255), Convert.ToByte(lightness * 255));
+            if (selectedBitmap == null)
+            {
+                System.Windows.MessageBox.Show("Please select an image first.");
+                return;
+            }
 
-            double q = lightness < 0.5 ? lightness * (1 + saturation) : lightness + saturation - lightness * saturation;
-            double p = 2 * lightness - q;
+            // Check if a point on the image has been clicked
+            if (clickedPoint == null)
+            {
+                System.Windows.MessageBox.Show("Please click on the image to select a color.");
+                return;
+            }
 
-            double hk = hue / 360;
+            // Get the size of the image
+            int imageWidth = selectedBitmap.Width;
+            int imageHeight = selectedBitmap.Height;
 
-            double tr = hk + 1.0 / 3.0;
-            double tg = hk;
-            double tb = hk - 1.0 / 3.0;
+            // Get the cursor position
+            System.Windows.Point cursor = Mouse.GetPosition(imgSelectedImage);
+            int cursorX = (int)(cursor.X * imageWidth / imgSelectedImage.ActualWidth);
+            int cursorY = (int)(cursor.Y * imageHeight / imgSelectedImage.ActualHeight);
 
-            tr = AdjustColor(tr, p, q);
-            tg = AdjustColor(tg, p, q);
-            tb = AdjustColor(tb, p, q);
+            // Define the region size to sample around the clicked pixel
+            int regionSize = 5; // Adjust as needed
 
-            byte r = Convert.ToByte(tr * 255);
-            byte g = Convert.ToByte(tg * 255);
-            byte b = Convert.ToByte(tb * 255);
+            // Get the average color of the region around the clicked pixel
+            Color averageColor = GetAverageColor(selectedBitmap, cursorX, cursorY, regionSize);
 
-            return Color.FromRgb(r, g, b);
+            // Convert RGB to HSL
+            double hue = averageColor.GetHue();
+
+            // Apply filter
+            Bitmap filteredBitmap = new Bitmap(selectedBitmap);
+            for (int x = 0; x < filteredBitmap.Width; x++)
+            {
+                for (int y = 0; y < filteredBitmap.Height; y++)
+                {
+                    Color pixelColor = filteredBitmap.GetPixel(x, y);
+                    double pixelHue = pixelColor.GetHue();
+                    if (Math.Abs(pixelHue - hue) > 10) // Adjust threshold as needed
+                    {
+                        filteredBitmap.SetPixel(x, y, Color.White);
+                    }
+                    else
+                    {
+                        filteredBitmap.SetPixel(x, y, Color.Black);
+                    }
+                }
+            }
+
+            imgFiltered.Source = ConvertBitmapToBitmapImage(filteredBitmap);
         }
 
-        static double AdjustColor(double tc, double p, double q)
+        private Color GetAverageColor(Bitmap bitmap, int centerX, int centerY, int regionSize)
         {
-            if (tc < 0) tc += 1;
-            if (tc > 1) tc -= 1;
-            if (tc < 1.0 / 6.0) return p + (q - p) * 6 * tc;
-            if (tc < 0.5) return q;
-            if (tc < 2.0 / 3.0) return p + (q - p) * (2.0 / 3.0 - tc) * 6;
-            return p;
+            int totalRed = 0;
+            int totalGreen = 0;
+            int totalBlue = 0;
+            int count = 0;
+
+            // Calculate the region boundaries
+            int startX = Math.Max(0, centerX - regionSize);
+            int startY = Math.Max(0, centerY - regionSize);
+            int endX = Math.Min(bitmap.Width - 1, centerX + regionSize);
+            int endY = Math.Min(bitmap.Height - 1, centerY + regionSize);
+
+            // Sum up the color components within the region
+            for (int x = startX; x <= endX; x++)
+            {
+                for (int y = startY; y <= endY; y++)
+                {
+                    Color pixelColor = bitmap.GetPixel(x, y);
+                    totalRed += pixelColor.R;
+                    totalGreen += pixelColor.G;
+                    totalBlue += pixelColor.B;
+                    count++;
+                }
+            }
+
+            // Check if count is zero to avoid divide by zero exception
+            if (count == 0)
+            {
+                // Return a default color (e.g., white)
+                return Color.White;
+            }
+
+            // Calculate the average color
+            int averageRed = totalRed / count;
+            int averageGreen = totalGreen / count;
+            int averageBlue = totalBlue / count;
+
+            return Color.FromArgb(averageRed, averageGreen, averageBlue);
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        private void imgSelectedImage_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            System.Windows.Point clickedPoint = e.GetPosition(imgSelectedImage);
+        }
+
+
+        private BitmapImage ConvertBitmapToBitmapImage(Bitmap bitmap)
+        {
+            BitmapImage bitmapImage = new BitmapImage();
+            using (MemoryStream memory = new MemoryStream())
+            {
+                bitmap.Save(memory, System.Drawing.Imaging.ImageFormat.Png);
+                memory.Position = 0;
+                bitmapImage.BeginInit();
+                bitmapImage.StreamSource = memory;
+                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
+                bitmapImage.EndInit();
+            }
+            return bitmapImage;
         }
 
 
