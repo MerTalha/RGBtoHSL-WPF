@@ -7,19 +7,13 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="1080" Width="1920">
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
-
-        <Button Grid.Row="0" Content="Select Image" Click="SelectImage_Click"/>
-
-        <Button Grid.Row="1" Content="Apply Filter" Click="ApplyFilter_Click"/>
-
-        <Image Grid.Row="2" x:Name="imgSelectedImage" Stretch="Uniform" Height="300" Width="300"/>
-
-        <Image Grid.Row="3" x:Name="imgFiltered" Stretch="Uniform" Height="300" Width="300"/>
+        <StackPanel Margin="20">
+            <TextBlock Text="RGB renk kodunu girin (örn: 125,125,125):" Margin="0 0 0 10"/>
+            <TextBox x:Name="txtInput" Margin="0 0 0 10"/>
+            <Button Content="Değiştir" Click="Button_Click"/>
+            <TextBlock x:Name="txtOutput" Margin="0 20 0 0"/>
+            <Border x:Name="inputColorBorder" Width="50" Height="50" BorderBrush="Black" BorderThickness="1" Margin="0 20 0 0"/>
+            <Border x:Name="outputColorBorder" Width="50" Height="50" BorderBrush="Black" BorderThickness="1"/>
+        </StackPanel>
     </Grid>
 </Window>

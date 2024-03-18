@@ -4,145 +4,66 @@ using System.IO;
 using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using Color = System.Drawing.Color;
 
 namespace ColorChange
 {
     public partial class MainWindow : Window
     {
-        private BitmapImage selectedImage;
-        private Bitmap selectedBitmap;
-
         public MainWindow()
         {
             InitializeComponent();
         }
 
-        private void SelectImage_Click(object sender, RoutedEventArgs e)
+        private void Button_Click(object sender, RoutedEventArgs e)
         {
-            Microsoft.Win32.OpenFileDialog openFileDialog = new Microsoft.Win32.OpenFileDialog();
-            openFileDialog.Filter = "Image Files|*.jpg;*.jpeg;*.png;*.gif;*.bmp";
+            string input = txtInput.Text;
+            string[] colors = input.Split(',');
 
-            if (openFileDialog.ShowDialog() == true)
+            int[] rgb = new int[3];
+            for (int i = 0; i < 3; i++)
             {
-                string selectedFile = openFileDialog.FileName;
-                selectedImage = new BitmapImage(new Uri(selectedFile));
-                imgSelectedImage.Source = selectedImage;
-                selectedBitmap = new Bitmap(selectedFile);
+                rgb[i] = Convert.ToInt32(colors[i]);
             }
+
+            Random random = new Random();
+            int[] array1 = ReadArrayFromFile("data1.txt");
+            int[] array2 = ReadArrayFromFile("data2.txt");
+            int[] array3 = ReadArrayFromFile("data3.txt");
+
+            
+            System.Windows.Media.Color inputColor = System.Windows.Media.Color.FromRgb((byte)rgb[0], (byte)rgb[1], (byte)rgb[2]);
+            inputColorBorder.Background = new SolidColorBrush(inputColor);
+            rgb[0] = array1[rgb[0]];
+            rgb[1] = array2[rgb[1]];
+            rgb[2] = array3[rgb[2]];
+
+            txtOutput.Text = $"Değiştirilmiş RGB renk kodu: {rgb[0]},{rgb[1]},{rgb[2]}";
+
+            
+            System.Windows.Media.Color outputColor = System.Windows.Media.Color.FromRgb((byte)rgb[0], (byte)rgb[1], (byte)rgb[2]);
+            outputColorBorder.Background = new SolidColorBrush(outputColor);
         }
 
-        private System.Windows.Point clickedPoint;
-
-        private void imgSelectedImage_MouseDown(object sender, MouseButtonEventArgs e)
+        private int[] ReadArrayFromFile(string filename)
         {
-            clickedPoint = e.GetPosition(imgSelectedImage);
-        }
-
-        private void ApplyFilter_Click(object sender, RoutedEventArgs e)
-        {
-            if (selectedBitmap == null)
+            int[] array = new int[255];
+            try
             {
-                System.Windows.MessageBox.Show("Please select an image first.");
-                return;
-            }
+                string[] lines = File.ReadAllLines(filename);
+                string[] values = lines[new Random().Next(lines.Length)].Split(',');
 
-            if (clickedPoint == null)
-            {
-                System.Windows.MessageBox.Show("Please click on the image to select a color.");
-                return;
-            }
-
-            int imageWidth = selectedBitmap.Width;
-            int imageHeight = selectedBitmap.Height;
-
-            System.Windows.Point cursor = Mouse.GetPosition(imgSelectedImage);
-            int cursorX = (int)(cursor.X * imageWidth / imgSelectedImage.ActualWidth);
-            int cursorY = (int)(cursor.Y * imageHeight / imgSelectedImage.ActualHeight);
-
-            int regionSize = 5; 
-
-            Color averageColor = GetAverageColor(selectedBitmap, cursorX, cursorY, regionSize);
-
-            double hue = averageColor.GetHue();
-
-            Bitmap filteredBitmap = new Bitmap(selectedBitmap);
-            for (int x = 0; x < filteredBitmap.Width; x++)
-            {
-                for (int y = 0; y < filteredBitmap.Height; y++)
+                for (int i = 0; i < 255; i++)
                 {
-                    Color pixelColor = filteredBitmap.GetPixel(x, y);
-                    double pixelHue = pixelColor.GetHue();
-                    if (Math.Abs(pixelHue - hue) > 10) 
-                    {
-                        filteredBitmap.SetPixel(x, y, Color.White);
-                    }
-                    else
-                    {
-                        filteredBitmap.SetPixel(x, y, Color.Black);
-                    }
+                    array[i] = Convert.ToInt32(values[i]);
                 }
             }
-
-            imgFiltered.Source = ConvertBitmapToBitmapImage(filteredBitmap);
-        }
-
-        private Color GetAverageColor(Bitmap bitmap, int centerX, int centerY, int regionSize)
-        {
-            int totalRed = 0;
-            int totalGreen = 0;
-            int totalBlue = 0;
-            int count = 0;
-
-            int startX = Math.Max(0, centerX - regionSize);
-            int startY = Math.Max(0, centerY - regionSize);
-            int endX = Math.Min(bitmap.Width - 1, centerX + regionSize);
-            int endY = Math.Min(bitmap.Height - 1, centerY + regionSize);
-
-            for (int x = startX; x <= endX; x++)
+            catch (Exception ex)
             {
-                for (int y = startY; y <= endY; y++)
-                {
-                    Color pixelColor = bitmap.GetPixel(x, y);
-                    totalRed += pixelColor.R;
-                    totalGreen += pixelColor.G;
-                    totalBlue += pixelColor.B;
-                    count++;
-                }
+                MessageBox.Show($"Dosya okuma hatası: {ex.Message}");
             }
-
-            if (count == 0)
-            {
-                return Color.White;
-            }
-
-            int averageRed = totalRed / count;
-            int averageGreen = totalGreen / count;
-            int averageBlue = totalBlue / count;
-
-            return Color.FromArgb(averageRed, averageGreen, averageBlue);
-        }
-
-        private void imgSelectedImage_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            System.Windows.Point clickedPoint = e.GetPosition(imgSelectedImage);
-        }
-
-
-        private BitmapImage ConvertBitmapToBitmapImage(Bitmap bitmap)
-        {
-            BitmapImage bitmapImage = new BitmapImage();
-            using (MemoryStream memory = new MemoryStream())
-            {
-                bitmap.Save(memory, System.Drawing.Imaging.ImageFormat.Png);
-                memory.Position = 0;
-                bitmapImage.BeginInit();
-                bitmapImage.StreamSource = memory;
-                bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
-                bitmapImage.EndInit();
-            }
-            return bitmapImage;
+            return array;
         }
 
 
